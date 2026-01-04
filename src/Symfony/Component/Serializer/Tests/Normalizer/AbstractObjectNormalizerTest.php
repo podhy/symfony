@@ -966,6 +966,7 @@ class AbstractObjectNormalizerTest extends TestCase
             'data' => [
                 'foo' => null,
             ],
+            'data2' => null,
         ];
 
         $obj = new class {
@@ -979,6 +980,43 @@ class AbstractObjectNormalizerTest extends TestCase
         $test = $normalizer->denormalize($data, $obj::class);
         $this->assertNull($test->foo);
         $this->assertFalse((new \ReflectionProperty($obj, 'bar'))->isInitialized($obj));
+
+        $obj = new class {
+            #[SerializedPath('[data][bar?]')]
+            public ?string $bar;
+        };
+
+        $test = $normalizer->denormalize($data, $obj::class);
+        $this->assertNull($test->bar);
+
+        $obj = new class {
+            #[SerializedPath('[data][foo]')]
+            public ?string $foo;
+
+            #[SerializedPath('[data][bar?]')]
+            public ?string $bar;
+        };
+
+        try {
+            $test = $normalizer->denormalize($data, $obj::class);
+            $this->assertNull($test->foo);
+            $this->assertNull($test->bar);
+        } catch (\Throwable $e) {
+            $this->fail('Exception should not be thrown');
+        }
+
+        $obj = new class {
+            #[SerializedPath('[data2?][foo]')]
+            public ?string $foo;
+        };
+
+        try {
+            $test = $normalizer->denormalize($data, $obj::class);
+            $this->assertNull($test->foo);
+        } catch (\TypeError) {
+            $this->fail('Exception should not be thrown');
+        }
+
     }
 
     public function testNormalizeBasedOnAllowedAttributes()
